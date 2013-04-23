@@ -1,0 +1,4 @@
+*.o
+*.so
+game_*
+libeo
