@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
   GLfloat specular[] = {0.0, 0.0, 0.0, 1.0};
   glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
 
- 
+  eoExec("autoexec.cmd");
   eoMainLoop();
 
   return 0;
