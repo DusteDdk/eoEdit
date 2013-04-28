@@ -20,11 +20,31 @@ engObj_s* objPic[6];
 engObj_s* tree;
 engObj_s* lastClickedPicture=NULL;
 engObj_s* treePsysObj[3];
+engObj_s* room0 ;
+engObj_s* portal ;
+engObj_s* beach;
+engObj_s* water;
+vboModel* waterFrame[3];
+engObj_s* globe;
+
+
 
 sound_s* ambienceSnd;
 sound_s* endSnd;
 sound_s* touchSndA;
 sound_s* touchSndB;
+
+guiLabel_s* lblTl;
+
+int minLeft=15;
+int secLeft=29;
+int ticksLeft=1000;
+
+int hasLeaf=0;
+int hasClickedPortal=0;
+int isGameOver=0;
+
+vec3 gameOverPos;
 
 sprite_s* dcur_spr; //"default" cursor
 sprite_s* hcur_spr; //"hover" cursor
@@ -74,14 +94,7 @@ void parRot( engObj_s* o )
   o->pos.z = sin(o->rot.y)*2;
 }
 
-void frameStart()
-{
-  eoGuiSetCursor(  dcur_spr,0,0  );
 
-  tree->thinkFunc = (objPic[5]->gameData>0 && objPic[4]->renderType==EO_RENDER_FULL)?treeRotate:NULL;
-
-
-}
 
 void btnBoomClick(void* whereBoomIs)
 {
@@ -91,7 +104,23 @@ void btnBoomClick(void* whereBoomIs)
 void objPulsate( engObj_s* o )
 {
 
-  o->solidColor[3]++;
+  if( o->offsetRot.x < 0 )
+  {
+    if( o->solidColor[3] < 30 )
+    {
+      o->offsetRot.x = 1;
+    } else {
+      o->solidColor[3]-=3;
+    }
+  } else {
+    if( o->solidColor[3] > 200 )
+    {
+      o->offsetRot.x = -1;
+    } else {
+      o->solidColor[3] +=3;
+    }
+
+  }
 }
 
 void camMoveDone()
@@ -137,10 +166,183 @@ particleEmitter_s* psysGen()
   return(e);
 }
 
+void fadeOut( engObj_s* o )
+{
+  if( o->solidColor[3] == 0 )
+  {
+    o->gameData=NULL;
+    o->thinkFunc=NULL;
+    o->clickedFunc=NULL;
+    eoObjDel(o);
+  } else {
+    o->solidColor[3]-=1;
+  }
+
+}
+
+void spawnPortalNow()
+{
+//  eoGuiShowCursor(1);
+  eoObjAdd( portal );
+
+
+  //Start room fadeout
+  room0->thinkFunc = fadeOut;
+}
+
+
+
+void fadeInBeach()
+{
+  portal->thinkFunc = fadeOut;
+  eoCamRecPlay( Data("/data/cam/","move12.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, NULL );
+  eoObjAdd(beach);
+  eoObjAdd(water);
+
+}
+
+void portalClicked( engObj_s* p, int btnState )
+{
+  int i=0;
+
+  if( !eoGuiIsCursorVisible() ) { return; }
+
+  eoGuiSetCursor(  hcur_spr,0,0  );
+  //portalClicked
+  if( btnState==1 )
+  {
+    eoGuiShowCursor(0);
+    hasClickedPortal=1;
+    p->clickedFunc=NULL;
+    eoCamRecPlay( Data("/data/cam/","move11.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, fadeInBeach );
+
+    tree->thinkFunc=NULL;
+    for(i=0; i < 6; i++)
+    {
+      objPic[i]->thinkFunc=fadeOut;
+    }
+  }
+}
+
+void beachFadeIn(engObj_s* p)
+{
+  //When done fading, set clickedfunc and enable cursor
+  if( p->solidColor[3] == 255 )
+  {
+    p->thinkFunc=NULL;
+    eoCamRecPlay( Data("/data/cam/","move13.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, exitMoveDone );
+  } else {
+    p->solidColor[3]+=1;
+  }
+
+}
+
+void globeSpin(engObj_s* g)
+{
+  g->rot.y += 0.02;
+  g->rot.x += 0.1;
+  g->rot.z += 0.005;
+  g->pos.y += sin(g->rot.y)*0.1;
+}
+
+void waterAni(engObj_s* w)
+{
+  static int tickDown=250;
+  static GLfloat level=0;
+
+  level += 0.1;
+
+  w->pos.y += sin(level)*0.1;
+
+  tickDown -= eoTicks();
+  if( tickDown < 1 )
+  {
+    tickDown=250;
+    if( w->model == waterFrame[0] )
+    {
+      w->model = waterFrame[1];
+    } else if( w->model == waterFrame[1] )
+    {
+      w->model = waterFrame[2];
+    } else if( w->model == waterFrame[2] )
+    {
+      w->model = waterFrame[0];
+    }
+  }
+}
+
+void waterFadeIn(engObj_s* p)
+{
+  //When done fading, set clickedfunc and enable cursor
+  if( p->solidColor[3] == 255 )
+  {
+    p->thinkFunc=waterAni;
+    eoObjAdd(globe);
+  } else {
+    p->solidColor[3]+=1;
+  }
+
+}
+
+
+void portalFadeIn(engObj_s* p)
+{
+  //When done fading, set clickedfunc and enable cursor
+  if( p->solidColor[3] == 255 )
+  {
+    p->thinkFunc=NULL;
+    p->solidColor[3] = 255;
+    p->clickedFunc = portalClicked;
+    eoGuiShowCursor(1);
+  } else {
+    p->solidColor[3]+=1;
+  }
+
+}
+
+void treeMouseOverFunc( engObj_s* t, int btnState )
+{
+  if( !eoGuiIsCursorVisible() ) { return; }
+
+  eoGuiSetCursor(  hcur_spr,0,0  );
+
+  if( btnState== 1)
+  {
+    eoGuiShowCursor(0);
+    if(hasLeaf)
+    {
+      tree->clickedFunc=NULL;
+      eoCamRecPlay( Data("/data/cam/","move9.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, spawnPortalNow );
+    } else {
+      eoCamRecPlay( Data("/data/cam/","move8.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
+    }
+  }
+
+}
+void leafFlyDone( engObj_s* oa, engObj_s* ob )
+{
+  eoGuiShowCursor(1);
+  explo(oa->pos);
+  eoSamplePlay( touchSndB,128 );
+  oa->gameData=NULL;
+
+  oa->colTeam=0;
+  ob->colTeam=0;
+
+  oa->disabled=1;
+
+  hasLeaf=1;
+  tree->clickedFunc = treeMouseOverFunc;
+}
+
+
 void picsMouseOverFunc( engObj_s* o, int btnState )
 {
   vec3 v;
   int i;
+
+  if( !eoGuiIsCursorVisible() ) { return; }
+
 
   o->thinkFunc=NULL;
   eoGuiSetCursor(  hcur_spr,0,0  );
@@ -162,34 +364,63 @@ void picsMouseOverFunc( engObj_s* o, int btnState )
     if( o == objPic[5] && (int)o->gameData == 0 )
     {
       eoGuiShowCursor(0);
-      eoCamRecPlay( Data("/data/cam/","move1.rec"), TRUE, camMoveDone );
+      eoCamRecPlay( Data("/data/cam/","move1.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
     }
     if( o == objPic[5] && (int)o->gameData == 1 )
     {
       eoGuiShowCursor(0);
-      eoCamRecPlay( Data("/data/cam/","move3.rec"), TRUE, camMoveDone );
+      eoCamRecPlay( Data("/data/cam/","move3.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
     }
 
     if( o == objPic[5] && (int)o->gameData > 1 && (int)objPic[4]->gameData==0 )
     {
       eoGuiShowCursor(0);
-      eoCamRecPlay( Data("/data/cam/","move4.rec"), TRUE, camMoveDone );
+      eoCamRecPlay( Data("/data/cam/","move4.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
     }
     if( o == objPic[5] && (int)o->gameData > 1 && (!tree->thinkFunc|| tree->disabled ))
     {
       eoGuiShowCursor(0);
-      eoCamRecPlay( Data("/data/cam/","move7.rec"), TRUE, camMoveDone );
+      eoCamRecPlay( Data("/data/cam/","move7.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
     }
     if( o == objPic[5] && (int)o->gameData > 1 && tree->thinkFunc&& !tree->disabled)
     {
       eoGuiShowCursor(0);
-      eoCamRecPlay( Data("/data/cam/","move5.rec"), TRUE, camMoveDone );
+      eoCamRecPlay( Data("/data/cam/","move5.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
     }
+
+    if( o == objPic[0] && (int)o->gameData > 0 )
+    {
+      eoGuiShowCursor(0);
+
+      eoPrint("tree->thinkFunc: %p", tree->thinkFunc);
+      eoPrint("tree->disabled: %i", tree->disabled);
+      eoPrint("room0->thinkFunc: %p", room0->thinkFunc);
+      if(tree->thinkFunc && !tree->disabled && room0->thinkFunc)
+      {
+        o->clickedFunc=NULL;
+
+        v = tree->pos;
+        v.y += 4;
+        o->vel = eoVec3FromPoints( o->pos, v );
+        o->vel = eoVec3Normalize(o->vel);
+        o->vel = eoVec3Scale(v, 0.0001 );
+
+        o->colTeam=1;
+        tree->colTeam=2;
+        o->colFunc=leafFlyDone;
+      } else {
+        eoCamRecPlay( Data("/data/cam/","move10.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
+      }
+
+    }
+
+
+
 
     if( o == objPic[0] && o->gameData==0 )
     {
       eoGuiShowCursor(0);
-      eoCamRecPlay( Data("/data/cam/","move6.rec"), TRUE, exitMoveDone );
+      eoCamRecPlay( Data("/data/cam/","move6.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
 
       for(i=0; i<3;i++)
       {
@@ -225,7 +456,7 @@ void picsMouseOverFunc( engObj_s* o, int btnState )
       if( o->gameData==0 )
       {
         eoGuiShowCursor(0);
-        eoCamRecPlay( Data("/data/cam/","move2.rec"), TRUE, camMoveDone );
+        eoCamRecPlay( Data("/data/cam/","move2.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
       }
     }
 
@@ -234,12 +465,90 @@ void picsMouseOverFunc( engObj_s* o, int btnState )
   }
 }
 
+
 void inpQuitFunc(inputEvent* e )
 {
   eoPrint("Quitting the game.");
-  eoExec("quit 1");
+  eoQuit();
 }
 
+
+void displayGameOver(inputEvent* e)
+{
+
+  isGameOver=1;
+  eoGuiShowCursor(0);
+  eoPrint("Bohoo!");
+  eoCamRecStop();
+  //Create window
+
+  gameOverPos = eoCamPosGet();
+
+  eoGuiAddLabel(ingameContext, eoSetting()->res.x/2 - 100, eoSetting()->res.y/2,"Game Over")->font=FONT_LARGE;
+  eoGuiAddLabel(ingameContext, eoSetting()->res.x/2 - 80, eoSetting()->res.y/2+26,"(Press ESC)");
+}
+
+void frameStart()
+{
+  vec3 v;
+  static GLfloat rot=0;
+  if( isGameOver )
+  {
+    rot -=0.006;
+
+    eoCamTargetSet(gameOverPos);
+    v.y = gameOverPos.y;
+    v.x = cos( rot )*5 + gameOverPos.x;
+    v.z = sin( rot )*5 + gameOverPos.z;
+    eoCamPosSet( v );
+    return;
+  }
+  eoGuiSetCursor(  dcur_spr,0,0  );
+
+  tree->thinkFunc = (objPic[5]->gameData>0 && objPic[4]->renderType==EO_RENDER_FULL)?treeRotate:NULL;
+
+  if( (int)objPic[0]->gameData>0 && objPic[2]->renderType==EO_RENDER_FULL && tree->thinkFunc && room0->thinkFunc != fadeOut)
+  {
+    room0->thinkFunc = objPulsate;
+    room0->fullBright = 1;
+
+  } else {
+    if( room0->thinkFunc == objPulsate )
+      room0->thinkFunc = NULL;
+  }
+
+
+  //Countdown
+  if( !hasClickedPortal && !isGameOver )
+  {
+    ticksLeft -= eoTicks();
+    if( ticksLeft < 1 )
+    {
+      ticksLeft=0;
+      secLeft--;
+
+      if(secLeft < 1)
+      {
+        secLeft=0;
+        minLeft--;
+
+        if( minLeft < 1 && secLeft < 1 && ticksLeft < 1 )
+        {
+          displayGameOver(NULL);
+        } else {
+          secLeft = 59;
+        }
+      }
+
+      if(!isGameOver)
+        ticksLeft = 1000;
+    }
+    sprintf(lblTl->txt, "00:%i:%i.%i", minLeft, secLeft, ticksLeft );
+  }
+
+
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -262,6 +571,13 @@ int main(int argc, char *argv[])
 
   //Setup the 2D gui context
   ingameContext = eoGuiContextCreate();
+
+  //Add countdown
+  lblTl = eoGuiAddLabel(ingameContext, eoSetting()->res.x/2-100,10, "00:15:30.00    ");
+  lblTl->font=FONT_LARGE;
+
+
+  //Set active context
   eoGuiContextSet(ingameContext);
 
   //Set camera to somewhere
@@ -297,7 +613,7 @@ int main(int argc, char *argv[])
   glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
 
 
-  engObj_s* room0 = eoObjCreate(ENGOBJ_MODEL);
+  room0 = eoObjCreate(ENGOBJ_MODEL);
   room0->model = eoModelLoad( Data("/data/objs/room0/",""), "room0.obj" );
   room0->renderType=EO_RENDER_WIREFRAME;
   eoObjBake(room0);
@@ -334,10 +650,69 @@ int main(int argc, char *argv[])
   tree->solidColor[2] = 0;
   tree->fullBright=1;
   tree->disabled=1;
+  tree->clickedFunc = treeMouseOverFunc; //Needs a clickfunction when baked to generate id color
 
   eoObjBake(tree);
+  tree->clickedFunc = NULL;
 
   eoObjAdd(tree);
+
+
+  //The portal out of the room
+  portal = eoObjCreate(ENGOBJ_MODEL);
+  portal->thinkFunc = portalFadeIn;
+  portal->model = eoModelLoad( Data("/data/objs/",""), "portal.obj");
+  portal->renderType = EO_RENDER_WIREFRAME;
+  portal->fullBright = 1;
+  portal->solidColor[0] = 255;
+  portal->solidColor[1] = 128;
+  portal->solidColor[2] = 0;
+  portal->solidColor[3] = 0;
+  portal->clickedFunc=portalClicked;
+  eoObjBake(portal);
+  portal->clickedFunc=NULL;
+
+  beach = eoObjCreate(ENGOBJ_MODEL);
+  beach->thinkFunc = beachFadeIn;
+  beach->model = eoModelLoad( Data("/data/objs/",""), "beach.obj");
+  beach->renderType = EO_RENDER_WIREFRAME;
+  beach->fullBright = 1;
+  beach->solidColor[0] = 200;
+  beach->solidColor[1] = 150;
+  beach->solidColor[2] = 0;
+  beach->solidColor[3] = 0;
+  eoObjBake(beach);
+
+  //
+  waterFrame[0] = eoModelLoad( Data("/data/objs/",""), "water0.obj");
+  waterFrame[1] = eoModelLoad( Data("/data/objs/",""), "water1.obj");
+  waterFrame[2] = eoModelLoad( Data("/data/objs/",""), "water2.obj");
+
+  water = eoObjCreate(ENGOBJ_MODEL);
+  water->thinkFunc = waterFadeIn;
+  water->model = waterFrame[0];
+  water->renderType = EO_RENDER_WIREFRAME;
+  water->fullBright = 1;
+  water->solidColor[0] = 0;
+  water->solidColor[1] = 50;
+  water->solidColor[2] = 255;
+  water->solidColor[3] = 0;
+
+  eoObjBake(water);
+  water->pos.y -= 8.4;
+
+
+  globe = eoObjCreate(ENGOBJ_MODEL);
+  globe->model = eoModelLoad( Data("/data/objs/",""), "globe.obj");
+
+  globe->thinkFunc = globeSpin;
+  eoObjBake(globe);
+
+  globe->pos.x = -376.361694;
+  globe->pos.y = 52.695896;
+  globe->pos.z = -44.950550;
+
+
 
   ambienceSnd = eoSampleLoad(Data("/data/sound/", "ambience.ogg"));
   endSnd = eoSampleLoad( Data("/data/sound/", "p.ogg"));
@@ -348,11 +723,12 @@ int main(int argc, char *argv[])
   eoSamplePlay(ambienceSnd,128);
 
 
-  eoCamRecPlay( Data("/data/cam/","move0.rec"), TRUE, camMoveDone );
+  eoCamRecPlay( Data("/data/cam/","move0.rec"), CAM_PLAYBACK_POSITION_ABSOLUTE, camMoveDone );
 
   eoGuiWarpMouse( eoSetting()->res.x/2, eoSetting()->res.y/2 );
 
   eoInpAddFunc( "exit", "Exit the game.", inpQuitFunc, INPUT_FLAG_DOWN);
+  eoInpAddFunc( "gameover", "Show the gameover screen.", displayGameOver, INPUT_FLAG_DOWN);
   eoExec("bind esc exit");
 
   eoMainLoop();

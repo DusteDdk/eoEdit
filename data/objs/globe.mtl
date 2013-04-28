@@ -1,0 +1,13 @@
+# Blender MTL File: 'room0.blend'
+# Material Count: 1
+
+newmtl Material.003
+Ns 100.0
+Ka 0.000000 0.000000 0.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.519820 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd globe.jpg
+refl 1
