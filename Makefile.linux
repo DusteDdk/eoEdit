@@ -27,9 +27,9 @@ MYCC = $(CC) $(CFLAGS) $(INCS) $(DEFS)
 
 all: $(TARGET)
 
-release: CFLAGS += -O3 -DGAME_RELEASE
+release: CFLAGS += -O1 -DGAME_RELEASE
 release: $(TARGET)
-	$(STRIP) $(TARGET)
+#	$(STRIP) $(TARGET)
 
 debug: CFLAGS += -Wall -O0 -g -DEO_DEBUG
 debug: $(TARGET)
