@@ -21,6 +21,11 @@ engObj_s* tree;
 engObj_s* lastClickedPicture=NULL;
 engObj_s* treePsysObj[3];
 
+sound_s* ambienceSnd;
+sound_s* endSnd;
+sound_s* touchSndA;
+sound_s* touchSndB;
+
 sprite_s* dcur_spr; //"default" cursor
 sprite_s* hcur_spr; //"hover" cursor
 char buf[2048];
@@ -98,6 +103,7 @@ void exitMoveDone()
 {
   guiWindow_s* placeHolder = eoGuiAddWindow( ingameContext, eoSetting()->res.x/2-150, eoSetting()->res.y/2-180 , 300,90, "Yay, you won!", 0 );
   eoGuiAddLabel(placeHolder, 0,0, "Well, you beat the game :)\n Press escape to exit.");
+  eoSamplePlay(endSnd,128);
 }
 
 particleEmitter_s* psysGen()
@@ -144,8 +150,10 @@ void picsMouseOverFunc( engObj_s* o, int btnState )
     if( o->renderType == EO_RENDER_WIREFRAME )
     {
       o->renderType=EO_RENDER_FULL;
+      eoSamplePlay(touchSndA, 128);
     } else {
       o->renderType=EO_RENDER_WIREFRAME;
+      eoSamplePlay(touchSndB, 128);
     }
 
 
@@ -330,6 +338,14 @@ int main(int argc, char *argv[])
   eoObjBake(tree);
 
   eoObjAdd(tree);
+
+  ambienceSnd = eoSampleLoad(Data("/data/sound/", "ambience.ogg"));
+  endSnd = eoSampleLoad( Data("/data/sound/", "p.ogg"));
+  touchSndA = eoSampleLoad(Data("/data/sound/", "ta.ogg"));
+  touchSndB = eoSampleLoad(Data("/data/sound/", "tb.ogg"));
+
+
+  eoSamplePlay(ambienceSnd,128);
 
 
   eoCamRecPlay( Data("/data/cam/","move0.rec"), TRUE, camMoveDone );
