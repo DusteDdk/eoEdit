@@ -397,7 +397,7 @@ int conSaveLevel(const char* args, void* notUsed )
 }
 
 
-int conLoadObj( const char* args, void* notUsed)
+int conLoadObj( const char* args, void* reposToSelected)
 {
   char model[256];
   char className[256];
@@ -426,6 +426,11 @@ int conLoadObj( const char* args, void* notUsed)
       obj->pos = eoCamPosGet();
       editorAddObj(obj);
 
+      if( reposToSelected )
+      {
+        obj->pos = selectedObj->pos;
+      }
+
     } else {
       eoPrint("File not found.");
       eoObjDel(obj);
@@ -439,6 +444,18 @@ int conLoadObj( const char* args, void* notUsed)
 
   return( CON_CALLBACK_HIDE_RETURN_VALUE );
 }
+
+int conLoadObjP( const char* args, void* notUsed )
+{
+  if( selectedObj )
+  {
+    conLoadObj( args, 1 );
+  } else {
+    eoPrint("Select an object first");
+  }
+  return( CON_CALLBACK_HIDE_RETURN_VALUE );
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -470,7 +487,6 @@ int main(int argc, char *argv[])
   eoGuiAddLabel(winHalp, 0, 0, "F1 = Console");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "h = Toggle Halp");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "click = Select Obj");
-  eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "esc = exit");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "u,o = obj move y");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "i,j,k,l  = obj move x/z");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "8,9= obj rot around y");
@@ -481,6 +497,8 @@ int main(int argc, char *argv[])
 
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "Cmds:");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "-------------");
+  eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "quit 1");
+  eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "addat /dir/file.obj className");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "add /dir/file.obj className");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "rot x y z");
   eoGuiAddLabel(winHalp, 0, lblOffset+=lblInc, "pos x y z");
@@ -515,6 +533,7 @@ int main(int argc, char *argv[])
   eoExec( "camfree 1" );
 
   eoFuncAdd( conLoadObj, NULL, "add");
+  eoFuncAdd( conLoadObjP, NULL, "addat");
   eoFuncAdd( conRotObj, NULL, "rot");
   eoFuncAdd( conPosObj, NULL, "pos");
   eoFuncAdd( conClassObj, NULL, "class");
