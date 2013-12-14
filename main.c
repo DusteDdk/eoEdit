@@ -405,6 +405,7 @@ int conLoadObj( const char* args, void* reposToSelected)
   char file[256];
   int i;
 
+  memset( dir, 0, 256);
   engObj_s* obj;
 
   if( splitVals(' ',args, model, className) )
@@ -413,8 +414,10 @@ int conLoadObj( const char* args, void* reposToSelected)
 
     memcpy(dir, model, i);
 
+
     strcpy(file, model+i);
 
+    eoPrint("debug: "TXTCOL_CYAN"%s", args);
     eoPrint("ModelDir: "TXTCOL_CYAN"%s "TXTCOL_WHITE" ModelFile: "TXTCOL_CYAN"%s "TXTCOL_WHITE"ClassName: "TXTCOL_GREEN"%s", dir,file,className);
     obj = eoObjCreate( ENGOBJ_MODEL );
 
@@ -616,7 +619,6 @@ int main(int argc, char *argv[])
   eoExec("bind 9 objRotYCCW");
   eoExec("bind shiftl objSlow");
   eoExec("bind delete objRm");
-
 
   eoMainLoop();
 
