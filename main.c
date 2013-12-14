@@ -568,7 +568,7 @@ int main(int argc, char *argv[])
 
 
   eoInpAddFunc( "exit", "Exit the game.", inpQuitFunc, INPUT_FLAG_DOWN);
-  eoExec("bind esc exit");
+
   eoInpAddFunc( "halp", "Toggle the halp window.", inpToggleHalp, INPUT_FLAG_DOWN);
   eoExec("bind h halp");
 
